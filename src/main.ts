@@ -8,6 +8,8 @@ import * as glob from 'glob'
 
 type RepoAssetsResp = Endpoints['GET /repos/:owner/:repo/releases/:release_id/assets']['response']['data']
 type ReleaseByTagResp = Endpoints['GET /repos/:owner/:repo/releases/tags/:tag']['response']
+type UpdateReleaseResp = Endpoints['PATCH /repos/:owner/:repo/releases/:release_id']['response']
+type UpdateReleaseParams = Endpoints['PATCH /repos/:owner/:repo/releases/:release_id']['parameters']
 type CreateReleaseResp = Endpoints['POST /repos/:owner/:repo/releases']['response']
 type UploadAssetResp = Endpoints['POST /repos/:owner/:repo/releases/:release_id/assets{?name,label}']['response']
 
@@ -16,11 +18,14 @@ async function get_release_by_tag(
   prerelease: boolean,
   release_name: string,
   body: string,
-  octokit: Octokit
-): Promise<ReleaseByTagResp | CreateReleaseResp> {
+  octokit: Octokit,
+  overwrite: boolean,
+  promote: boolean
+): Promise<ReleaseByTagResp | CreateReleaseResp | UpdateReleaseResp> {
+  let release: ReleaseByTagResp
   try {
     core.debug(`Getting release by tag ${tag}.`)
-    return await octokit.repos.getReleaseByTag({
+    release = await octokit.repos.getReleaseByTag({
       ...repo(),
       tag: tag
     })
@@ -41,6 +46,36 @@ async function get_release_by_tag(
       throw error
     }
   }
+  let updateObject: Partial<UpdateReleaseParams> | undefined
+  if (promote && release.data.prerelease) {
+    core.debug(`The ${tag} is a prerelease, promoting it to a release.`)
+    updateObject = updateObject || {}
+    updateObject.prerelease = false
+  }
+  if (overwrite) {
+    if (release.data.name !== release_name) {
+      core.debug(
+        `The ${tag} release already exists with a different name ${release.data.name} so we'll overwrite it.`
+      )
+      updateObject = updateObject || {}
+      updateObject.name = release_name
+    }
+    if (release.data.body !== body) {
+      core.debug(
+        `The ${tag} release already exists with a different body ${release.data.body} so we'll overwrite it.`
+      )
+      updateObject = updateObject || {}
+      updateObject.body = body
+    }
+  }
+  if (updateObject) {
+    return octokit.repos.updateRelease({
+      ...repo(),
+      ...updateObject,
+      release_id: release.data.id
+    })
+  }
+  return release
 }
 
 async function upload_to_release(
@@ -134,6 +169,7 @@ async function run(): Promise<void> {
 
     const file_glob = core.getInput('file_glob') == 'true' ? true : false
     const overwrite = core.getInput('overwrite') == 'true' ? true : false
+    const promote = core.getInput('promote') == 'true' ? true : false
     const prerelease = core.getInput('prerelease') == 'true' ? true : false
     const release_name = core.getInput('release_name')
     const body = core.getInput('body')
@@ -144,7 +180,9 @@ async function run(): Promise<void> {
       prerelease,
       release_name,
       body,
-      octokit
+      octokit,
+      overwrite,
+      promote
     )
 
     if (file_glob) {

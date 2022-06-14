@@ -16,7 +16,8 @@ Optional Arguments
 - `asset_name`: The name the file gets as an asset on a release. Use `$tag` to include the tag name. When not provided it will default to the filename.
                 This is not used if `file_glob` is set to `true`.
 - `file_glob`: If set to true, the file argument can be a glob pattern (`asset_name` is ignored in this case) (Default: `false`)
-- `overwrite`: If an asset with the same name already exists, overwrite it (Default: `false`).
+- `overwrite`: If a release already exists, overwrite assets/ name and body (Default: `false`).
+- `promote`: If a prerelease already exists, promote it to a release (Default: `false`).
 - `prerelease`: Mark the release as a pre-release (Default: `false`).
 - `release_name`: Explicitly set a release name. (Defaults: implicitly same as `tag` via GitHub API).
 - `body`: Content of the release text (Default: `""`).
@@ -58,6 +59,7 @@ jobs:
         asset_name: mything
         tag: ${{ github.ref }}
         overwrite: true
+        promote: true
         body: "This is my release text"
 ```
 
@@ -125,6 +127,7 @@ jobs:
         file: target/release/my*
         tag: ${{ github.ref }}
         overwrite: true
+        promote: true
         file_glob: true
 ```
 
@@ -158,6 +161,7 @@ jobs:
         asset_name: mything
         tag: ${{ github.ref }}
         overwrite: true
+        promote: true
         body: "This is my release text"
 ```
 

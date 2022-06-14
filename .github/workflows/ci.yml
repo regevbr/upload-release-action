@@ -30,6 +30,7 @@ jobs:
         asset_name: TEST.md
         tag: ci-test-${{ matrix.os }}-${{ github.run_id }}
         overwrite: true
+        promote: true
         prerelease: true
         body: "rofl lol test"
     - name: Check that the uploaded asset is readable
